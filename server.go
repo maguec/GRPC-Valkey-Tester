@@ -69,7 +69,7 @@ func main() {
 	host := os.Getenv("MEMORYSTORE_IP")
 	if host == "" {
 		panic("Need to set the MEMORYSTORE_IP env var")
-	} 
+	}
 	caCertPool := x509.NewCertPool()
 	certPEM, err := os.ReadFile("/tmp/ca.crt")
 	if err != nil {
@@ -79,19 +79,19 @@ func main() {
 	caCertPool.AppendCertsFromPEM(certPEM)
 	client, err := valkey.NewClient(
 		valkey.ClientOption{
-			InitAddress: []string{fmt.Sprintf("%s:6379", host)},
+			InitAddress:           []string{fmt.Sprintf("%s:6379", host)},
 			PipelineMultiplex:     8,
 			DialCtxFn:             valkeyDialLogger,
 			DisableAutoPipelining: true,
-			AuthCredentialsFn: retrieveTokenFunc,
+			AuthCredentialsFn:     retrieveTokenFunc,
 			//EnableCrossSlotMGET:                true,
 			//AllowUnstableSlotsForCrossSlotMGET: false,
 			//SendToReplica: func(cmd valkey.Command) bool {
 			//	return cfg.readReplica && cmd.IsReadOnly() && rand.Float64() < 0.5
 			//},
 			TLSConfig: &tls.Config{
-				RootCAs:            caCertPool,
-			//	ClientSessionCache: nil,
+				RootCAs: caCertPool,
+				//	ClientSessionCache: nil,
 			},
 		},
 	)
@@ -100,11 +100,18 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("Populating keyspace - starting")
-	for i := 0; i < 100000; i++ {
-		client.Do(context.Background(), client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(fmt.Sprintf("%d", i)).Build())
+	exists, _ := client.Do(ctx, client.B().Exists().Key("key-100000").Build()).ToInt64()
+
+	if exists == 1 {
+		log.Printf("Test keys are already loaded")
+	} else {
+
+		log.Printf("Populating keyspace - starting")
+		for i := 0; i < 100000; i++ {
+			client.Do(context.Background(), client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(fmt.Sprintf("%d", i)).Build())
+		}
+		log.Printf("Populating keyspace - complete")
 	}
-	log.Printf("Populating keyspace - complete")
 
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
