@@ -102,7 +102,7 @@ func main() {
 
   ctx := context.Background()
 
-	exists, _ := client.Do(ctx, client.B().Exists().Key("key-100000").Build()).ToInt64()
+	exists, _ := client.Do(ctx, client.B().Exists().Key("key-99999").Build()).ToInt64()
 
 	if exists == 1 {
 		log.Printf("Test keys are already loaded")
