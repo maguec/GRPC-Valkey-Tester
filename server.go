@@ -50,19 +50,18 @@ func valkeyDialLogger(ctx context.Context, s1 string, dialer *net.Dialer, tlscon
 // Implement the SayHello method
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	var err error
-	keys := make([]string, 0, 100)
-	for i := 0; i < 10; i++ {
-		keys = append(keys, fmt.Sprintf("key-%d", rand.Intn(100000)))
+	cmds := make(valkey.Commands, 0, 100)
+	for i := 0; i < 100; i++ {
+		cmds = append(cmds, s.valkeyClient.B().Get().Key(fmt.Sprintf("key-%d", rand.Intn(100000))).Build().ToPipe())
 	}
 
-  //err = s.valkeyClient.Do(ctx, s.valkeyClient.B().Mget().Key(keys...).Build()).Error()
-  err = s.valkeyClient.Do(ctx, s.valkeyClient.B().Get().Key(keys[0]).Build()).Error()
-	if err != nil {
-		return nil, err
-	} else {
-		return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
-
+	for _, resp := range s.valkeyClient.DoMulti(ctx, cmds...) {
+		if err = resp.Error(); err != nil {
+			return nil, err
+		}
 	}
+
+	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 
 func main() {
@@ -72,6 +71,7 @@ func main() {
 			//DisableAutoPipelining:              false,
 			PipelineMultiplex: 8,
 			DialCtxFn:         valkeyDialLogger,
+      DisableAutoPipelining: true,
 			//AuthCredentialsFn: retrieveTokenFunc,
 			//EnableCrossSlotMGET:                true,
 			//AllowUnstableSlotsForCrossSlotMGET: false,
