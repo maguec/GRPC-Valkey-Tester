@@ -100,6 +100,8 @@ func main() {
 		panic(err)
 	}
 
+  ctx := context.Background()
+
 	exists, _ := client.Do(ctx, client.B().Exists().Key("key-100000").Build()).ToInt64()
 
 	if exists == 1 {
@@ -108,7 +110,7 @@ func main() {
 
 		log.Printf("Populating keyspace - starting")
 		for i := 0; i < 100000; i++ {
-			client.Do(context.Background(), client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(fmt.Sprintf("%d", i)).Build())
+			client.Do(ctx, client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(fmt.Sprintf("%d", i)).Build())
 		}
 		log.Printf("Populating keyspace - complete")
 	}
