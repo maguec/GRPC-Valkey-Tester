@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"math/rand"
@@ -65,23 +66,33 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 }
 
 func main() {
+	host := os.Getenv("MEMORYSTORE_IP")
+	if host == "" {
+		panic("Need to set the MEMORYSTORE_IP env var")
+	} 
+	caCertPool := x509.NewCertPool()
+	certPEM, err := os.ReadFile("/tmp/ca.crt")
+	if err != nil {
+		fmt.Printf("Error reading certificate file: %v\n", err)
+		return
+	}
+	caCertPool.AppendCertsFromPEM(certPEM)
 	client, err := valkey.NewClient(
 		valkey.ClientOption{
-			InitAddress: []string{"127.0.0.1:30001"},
-			//DisableAutoPipelining:              false,
-			PipelineMultiplex: 8,
-			DialCtxFn:         valkeyDialLogger,
-      DisableAutoPipelining: true,
-			//AuthCredentialsFn: retrieveTokenFunc,
+			InitAddress: []string{fmt.Sprintf("%s:6379", host)},
+			PipelineMultiplex:     8,
+			DialCtxFn:             valkeyDialLogger,
+			DisableAutoPipelining: true,
+			AuthCredentialsFn: retrieveTokenFunc,
 			//EnableCrossSlotMGET:                true,
 			//AllowUnstableSlotsForCrossSlotMGET: false,
 			//SendToReplica: func(cmd valkey.Command) bool {
 			//	return cfg.readReplica && cmd.IsReadOnly() && rand.Float64() < 0.5
 			//},
-			//TLSConfig: &tls.Config{
-			//	RootCAs:            nil,
+			TLSConfig: &tls.Config{
+				RootCAs:            caCertPool,
 			//	ClientSessionCache: nil,
-			//},
+			},
 		},
 	)
 	defer client.Close()
