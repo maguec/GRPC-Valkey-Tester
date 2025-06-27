@@ -119,7 +119,7 @@ func main() {
 			//},
 			TLSConfig: &tls.Config{
 				RootCAs: caCertPool,
-				//	ClientSessionCache: nil,
+				//	ClientSessionCache: tls.NewLRUClientSessionCache(1024),
 			},
 		},
 	)
