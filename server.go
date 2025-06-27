@@ -4,7 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/rand"
 	"fmt"
+	"io"
+	"strings"
 	"log"
 	"math/rand"
 	"net"
@@ -21,6 +24,33 @@ import (
 const (
 	port = ":50051"
 )
+
+func generateUncompressibleString(kb int) (string, error) {
+	if kb < 0 {
+		return "", fmt.Errorf("kilobytes cannot be negative")
+	}
+
+	if kb == 0 {
+		return "", nil
+	}
+
+	targetBytes := kb * 1024
+
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?`~ "
+	charsetLen := byte(len(charset)) // Convert length to byte for modulo operation.
+	randomBytes := make([]byte, targetBytes)
+	_, err := io.ReadFull(rand.Reader, randomBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to read random bytes: %w", err)
+	}
+	resultChars := make([]byte, targetBytes)
+
+	for i := 0; i < targetBytes; i++ {
+		resultChars[i] = charset[randomBytes[i]%charsetLen]
+	}
+
+	return string(resultChars), nil
+}
 
 // Define a struct that implements the generated gRPC service interface
 type server struct {
@@ -84,8 +114,6 @@ func main() {
 			DialCtxFn:             valkeyDialLogger,
 			DisableAutoPipelining: true,
 			AuthCredentialsFn:     retrieveTokenFunc,
-			//EnableCrossSlotMGET:                true,
-			//AllowUnstableSlotsForCrossSlotMGET: false,
 			//SendToReplica: func(cmd valkey.Command) bool {
 			//	return cfg.readReplica && cmd.IsReadOnly() && rand.Float64() < 0.5
 			//},
@@ -110,7 +138,7 @@ func main() {
 
 		log.Printf("Populating keyspace - starting")
 		for i := 0; i < 100000; i++ {
-			client.Do(ctx, client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(fmt.Sprintf("%d", i)).Build())
+			client.Do(ctx, client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(generateUncompressibleString(10)).Build())
 		}
 		log.Printf("Populating keyspace - complete")
 	}
