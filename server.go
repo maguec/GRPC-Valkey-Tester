@@ -7,9 +7,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"strings"
 	"log"
-	"math/rand"
+	mrand "math/rand"
 	"net"
 	"os"
 	"time"
@@ -83,7 +82,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	var err error
 	cmds := make(valkey.Commands, 0, 100)
 	for i := 0; i < 100; i++ {
-		cmds = append(cmds, s.valkeyClient.B().Get().Key(fmt.Sprintf("key-%d", rand.Intn(100000))).Build().ToPipe())
+		cmds = append(cmds, s.valkeyClient.B().Get().Key(fmt.Sprintf("key-%d", mrand.Intn(100000))).Build().ToPipe())
 	}
 
 	for _, resp := range s.valkeyClient.DoMulti(ctx, cmds...) {
@@ -138,7 +137,8 @@ func main() {
 
 		log.Printf("Populating keyspace - starting")
 		for i := 0; i < 100000; i++ {
-			client.Do(ctx, client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(generateUncompressibleString(10)).Build())
+      v, _ := generateUncompressibleString(10)
+			client.Do(ctx, client.B().Set().Key(fmt.Sprintf("key-%d", i)).Value(v).Build().ToPipe())
 		}
 		log.Printf("Populating keyspace - complete")
 	}
